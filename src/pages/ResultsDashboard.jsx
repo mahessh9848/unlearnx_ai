@@ -1,22 +1,29 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { RefreshCw, TrendingUp, Shield, Cpu, ArrowRight, AlertTriangle, BarChart3, Rocket, Clock, Check } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { RefreshCw, TrendingUp, Shield, Cpu, ArrowRight, AlertTriangle, BarChart3, Rocket, Clock, Check, History } from "lucide-react";
 import RadialScore from "../components/RadialScore";
-import { saveToHistory } from "../utils/history";
+import { useAuth } from "../context/AuthContext";
+import { saveAnalysisRecord } from "../services/historyService";
 
 export default function ResultsDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const results = location.state?.results;
   const formData = location.state?.formData;
+  const fromHistory = location.state?.fromHistory;
+  const savedAt = location.state?.savedAt;
+  const savedRef = useRef(false);
 
-  // Auto-save to history whenever valid results arrive
+  // Auto-save to history whenever fresh results arrive (once per session)
   useEffect(() => {
-    if (results && formData) {
-      saveToHistory(formData, results);
+    if (results && formData && !fromHistory && !savedRef.current) {
+      savedRef.current = true;
+      if (user?.id) {
+        saveAnalysisRecord(user.id, formData, results);
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [results, formData, fromHistory, user?.id]);
 
   if (!results) {
     return (
@@ -44,10 +51,23 @@ export default function ResultsDashboard() {
 
   return (
     <div className="dashboard">
+      {/* Historical Record Notification Banner */}
+      {fromHistory && (
+        <div className="history-loaded-banner">
+          <History size={18} color="var(--accent-cyan)" />
+          <span>
+            Viewing saved historical analysis{savedAt ? ` from ${new Date(savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}.
+          </span>
+          <button className="history-loaded-btn" onClick={() => navigate("/history")}>
+            Back to History
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="dashboard-header">
         <div className="dash-complete-dot" />
-        <h1 className="dashboard-title">Analysis Complete</h1>
+        <h1 className="dashboard-title">{fromHistory ? "Saved Career Analysis" : "Analysis Complete"}</h1>
         <p className="dashboard-subtitle">
           Based on your goal in {industry}, here's what to avoid — and what to learn instead.
         </p>
