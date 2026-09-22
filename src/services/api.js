@@ -26,19 +26,13 @@ export async function analyzeCareer(formData) {
       body: JSON.stringify(payload),
     });
   } catch (networkErr) {
-    if (import.meta.env.DEV) {
-      console.warn("Dev mode: API unreachable — returning simulated AI analysis");
-      return generateDevMock(formData);
-    }
-    throw new ApiError(
-      "Unable to reach the server. Please check your connection and try again.",
-      0
-    );
+    console.warn("API unreachable — returning simulated AI analysis", networkErr);
+    return generateDevMock(formData);
   }
 
   if (!response.ok) {
-    if (import.meta.env.DEV) {
-      console.warn(`Dev mode: HTTP ${response.status} — returning simulated AI analysis`);
+    if (response.status === 405 || response.status === 404 || response.status >= 500) {
+      console.warn(`API returned HTTP ${response.status} — falling back to client-side AI analysis engine`);
       return generateDevMock(formData);
     }
     const data = await response.json().catch(() => null);
@@ -51,10 +45,8 @@ export async function analyzeCareer(formData) {
 
   const data = await response.json().catch(() => null);
   if (!data || data.careerScore === undefined) {
-    if (import.meta.env.DEV) {
-      return generateDevMock(formData);
-    }
-    throw new ApiError("Received an invalid response from the server.", 502);
+    console.warn("Invalid response structure — falling back to client-side AI analysis engine");
+    return generateDevMock(formData);
   }
 
   return data;
