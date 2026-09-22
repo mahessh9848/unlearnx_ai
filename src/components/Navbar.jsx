@@ -56,15 +56,11 @@ export default function Navbar() {
   };
 
   const displayName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
+    user?.name ||
     user?.email?.split("@")[0] ||
     "User";
 
-  const avatarUrl =
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
-    null;
+  const avatarUrl = null; // Demo auth — no avatar URLs
 
   const initial = displayName.charAt(0).toUpperCase();
 
@@ -184,7 +180,7 @@ export default function Navbar() {
             onClick={() => { setMobileOpen(false); navigate("/login"); }}
             style={{ color: "var(--accent-red)", fontWeight: 600 }}
           >
-            Sign In with Google
+            Sign In
           </button>
         )}
 

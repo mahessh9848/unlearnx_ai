@@ -1,17 +1,22 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Shield, Sparkles, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { Sparkles, AlertCircle, ArrowLeft, Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const { isAuthenticated, signInWithGoogle, isConfigured, error: authError } = useAuth();
+  const { isAuthenticated, signIn, signUp, error: authError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const destination = location.state?.from || "/analyze";
+
+  const [mode, setMode] = useState("signin"); // "signin" | "signup"
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
-
-  const destination = location.state?.from || "/analyze";
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -19,17 +24,53 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, navigate, destination]);
 
-  const handleGoogleSignIn = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError(null);
+
+    if (mode === "signup" && name.trim().length < 2) {
+      setLocalError("Please enter your full name.");
+      return;
+    }
+    if (!email.includes("@")) {
+      setLocalError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setLocalError("Password must be at least 6 characters.");
+      return;
+    }
+
     try {
       setLoading(true);
-      setLocalError(null);
-      await signInWithGoogle(destination);
+      if (mode === "signin") {
+        await signIn(email, password);
+      } else {
+        await signUp(name, email, password);
+      }
+      // navigation handled by the useEffect above
     } catch (err) {
-      console.error("Google sign-in error:", err);
-      setLocalError(err.message || "Failed to initialize Google sign-in.");
+      setLocalError(err.message || "Something went wrong. Please try again.");
       setLoading(false);
     }
   };
+
+  const switchMode = () => {
+    setMode((m) => (m === "signin" ? "signup" : "signin"));
+    setLocalError(null);
+    setName("");
+    setEmail("");
+    setPassword("");
+  };
+
+  const fillDemo = () => {
+    setMode("signin");
+    setEmail("demo@unlearnx.ai");
+    setPassword("demo1234");
+    setLocalError(null);
+  };
+
+  const error = localError || authError;
 
   return (
     <div className="login-page-container">
@@ -41,74 +82,144 @@ export default function LoginPage() {
           <ArrowLeft size={16} /> Back to Home
         </Link>
 
+        {/* Header */}
         <div className="login-header">
           <div className="login-logo-badge">
             <Sparkles size={22} color="var(--accent-red)" />
           </div>
           <h1 className="login-title">UnlearnX</h1>
           <p className="login-subtitle">
-            Sign in with your Google account to automatically save, revisit, and track your personalized AI career analyses.
+            {mode === "signin"
+              ? "Sign in to save and revisit your learning analyses."
+              : "Create your free account to track your career intelligence."}
           </p>
         </div>
 
-        {(localError || authError) && (
-          <div className="login-alert login-alert-error">
-            <AlertCircle size={18} />
-            <span>{localError || authError}</span>
-          </div>
-        )}
-
-        {!isConfigured && (
-          <div className="login-alert login-alert-warning">
-            <AlertCircle size={18} />
-            <span>
-              <strong>Supabase Setup Required:</strong> Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your environment variables to enable live Google sign-in.
-            </span>
-          </div>
-        )}
-
-        <div className="login-action-section">
+        {/* Mode Tabs */}
+        <div className="login-tabs">
           <button
+            className={`login-tab ${mode === "signin" ? "active" : ""}`}
+            onClick={() => { setMode("signin"); setLocalError(null); }}
             type="button"
-            className="google-signin-btn"
-            onClick={handleGoogleSignIn}
+          >
+            Sign In
+          </button>
+          <button
+            className={`login-tab ${mode === "signup" ? "active" : ""}`}
+            onClick={() => { setMode("signup"); setLocalError(null); }}
+            type="button"
+          >
+            Create Account
+          </button>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="login-alert login-alert-error">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form className="login-form" onSubmit={handleSubmit} noValidate>
+          {mode === "signup" && (
+            <div className="login-field">
+              <label className="login-label" htmlFor="login-name">Full Name</label>
+              <div className="login-input-wrap">
+                <User size={16} className="login-input-icon" />
+                <input
+                  id="login-name"
+                  type="text"
+                  className="login-input"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-email">Email Address</label>
+            <div className="login-input-wrap">
+              <Mail size={16} className="login-input-icon" />
+              <input
+                id="login-email"
+                type="email"
+                className="login-input"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-password">Password</label>
+            <div className="login-input-wrap">
+              <Lock size={16} className="login-input-icon" />
+              <input
+                id="login-password"
+                type={showPassword ? "text" : "password"}
+                className="login-input login-input-password"
+                placeholder={mode === "signup" ? "Min. 6 characters" : "Your password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="login-eye-btn"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="login-submit-btn"
             disabled={loading}
           >
             {loading ? (
               <>
-                <Loader2 size={20} className="spin-icon" />
-                <span>Connecting to Google...</span>
+                <Loader2 size={18} className="spin-icon" />
+                <span>{mode === "signin" ? "Signing In..." : "Creating Account..."}</span>
               </>
             ) : (
-              <>
-                <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.36 7.31 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </>
+              <span>{mode === "signin" ? "Sign In" : "Create Account"}</span>
             )}
+          </button>
+        </form>
+
+        {/* Demo quick fill */}
+        <div className="login-demo-section">
+          <span className="login-demo-label">Just exploring?</span>
+          <button type="button" className="login-demo-btn" onClick={fillDemo}>
+            Use Demo Account
           </button>
         </div>
 
-        <div className="login-security-notice">
-          <Shield size={14} color="var(--accent-cyan)" />
-          <span>Secure authentication handled by Google. We never ask for or store your Google password.</span>
-        </div>
+        {/* Switch mode */}
+        <p className="login-switch-text">
+          {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button type="button" className="login-switch-link" onClick={switchMode}>
+            {mode === "signin" ? "Create one" : "Sign in"}
+          </button>
+        </p>
+
+        <p className="login-privacy-note">
+          This is a demo system. Data is stored locally in your browser only.
+        </p>
       </div>
     </div>
   );
